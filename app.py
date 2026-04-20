@@ -18,14 +18,22 @@ from io import BytesIO
 
 # 注册中文字体（以微软雅黑为例，请确保字体文件存在）
 try:
-    pdfmetrics.registerFont(TTFont('MicrosoftYaHei', 'C:/Windows/Fonts/msyh.ttc'))
-    FONT_NAME = 'MicrosoftYaHei'
-except:
-    try:
-        pdfmetrics.registerFont(TTFont('SimSun', 'C:/Windows/Fonts/simsun.ttc'))
-        FONT_NAME = 'SimSun'
-    except:
-        FONT_NAME = 'Helvetica'  # 回退字体
+    import os
+    # 尝试加载本地字体
+    if os.name == 'nt':  # Windows系统
+        try:
+            pdfmetrics.registerFont(TTFont('MicrosoftYaHei', 'C:/Windows/Fonts/msyh.ttc'))
+            FONT_NAME = 'MicrosoftYaHei'
+        except:
+            try:
+                pdfmetrics.registerFont(TTFont('SimSun', 'C:/Windows/Fonts/simsun.ttc'))
+                FONT_NAME = 'SimSun'
+            except:
+                FONT_NAME = 'Helvetica'  # 回退字体
+    else:  # 非Windows系统（云端环境）
+        FONT_NAME = 'Helvetica'  # 直接使用默认字体
+except Exception as e:
+    FONT_NAME = 'Helvetica'  # 出错时使用默认字体
 
 def generate_pdf_report(records):
     buffer = BytesIO()
@@ -216,20 +224,33 @@ with col2:
 
 # ------------------- 加载模型 -------------------
 @st.cache_resource
-def load_models():
+def load_models(scratch_conf_val, missing_conf_val):
     try:
+        import os
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # 检查模型文件是否存在
+        scratch_model_path = os.path.join(base_dir, "models", "scratch_best.pt")
+        missing_model_path = os.path.join(base_dir, "models", "missing_screw_best.pt")
+        
+        if not os.path.exists(scratch_model_path):
+            st.error(f"划痕模型文件不存在：{scratch_model_path}")
+            st.stop()
+        if not os.path.exists(missing_model_path):
+            st.error(f"漏装螺丝模型文件不存在：{missing_model_path}")
+            st.stop()
+            
         detector = Detector(
-            scratch_path=r"C:\HALporject\models\scratch_best.pt",
-            missing_path=r"C:\HALporject\models\missing_screw_best.pt",
-            scratch_conf=scratch_conf,
-            missing_conf=missing_conf
+            scratch_path=scratch_model_path,
+            missing_path=missing_model_path,
+            scratch_conf=scratch_conf_val,
+            missing_conf=missing_conf_val
         )
         return detector
     except Exception as e:
         st.error(f"模型加载失败，请检查模型文件路径。\n错误：{e}")
         st.stop()
 
-detector = load_models()
+detector = load_models(scratch_conf, missing_conf)
 detector.set_scratch_conf(scratch_conf)
 detector.set_missing_conf(missing_conf)
 
