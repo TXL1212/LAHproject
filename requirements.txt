@@ -1,9 +1,1 @@
-streamlit
-ultralytics
-torch
-torchvision
-pandas
-openpyxl
-reportlab
 opencv-python-headless
-pillow
